@@ -76,13 +76,10 @@ echo ""
 # Install npm dependencies
 echo "Step 1: Installing npm dependencies..."
 echo "---------------------------------------"
-if [ ! -d "node_modules" ]; then
-    echo "Running npm update..."
-    npm update
-fi
 
-echo "Running npm install..."
+echo "Running npm install (skipping build scripts)..."
 npm install --legacy-peer-deps --ignore-scripts
+
 echo "✓ npm dependencies installed"
 echo ""
 
