@@ -21,11 +21,15 @@ https://discord.gg/4mVaTsH
 
 #### Requirements
 * Coin daemon(s) (find the coin's repo and build latest version from source)
-* [Node.js](http://nodejs.org/) v8.11 ([follow these installation instructions](https://github.com/nodejs/node))
-* [Redis](http://redis.io/) key-value store v2.6+ ([follow these instructions](http://redis.io/topics/quickstart))
+* [Node.js](http://nodejs.org/) v20.x LTS ([follow these installation instructions](https://github.com/nodejs/node))
+* [Redis](http://redis.io/) key-value store v5.0+ ([follow these instructions](http://redis.io/topics/quickstart))
+* [PM2](https://pm2.keymetrics.io/) v5.1.2+ for process management
+* Ubuntu 24.04 LTS or compatible Linux distribution
 
 ##### Seriously
 These are legitimate requirements. If you use old versions of Node.js or Redis that may come with your system package manager then you will have problems. Follow the linked instructions to get the last stable versions.
+
+**Note**: Node.js 20.x LTS is required for compatibility with Ubuntu 24.04 and modern security patches. Node 8.11 is EOL and no longer supported.
 
 [**Redis security warning**](http://redis.io/topics/security): be sure firewall access to redis - an easy way is to
 include `bind 127.0.0.1` in your `redis.conf` file. Also it's a good idea to learn about and understand software that
