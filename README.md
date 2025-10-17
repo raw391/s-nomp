@@ -56,64 +56,30 @@ a good pool operator. For starters be sure to read:
 
 #### 1) Downloading & Installing
 
-Clone the repository and run `npm update` for all the dependencies to be installed:
+First, install system dependencies and Node.js:
 
 ```bash
-sudo apt-get install build-essential libsodium-dev npm libboost-all-dev
+sudo apt-get install build-essential libsodium-dev npm libboost-all-dev redis-server
 sudo npm install n -g
 sudo n stable
-git clone https://github.com/s-nomp/s-nomp.git s-nomp
-cd s-nomp
-npm update
-npm install --legacy-peer-deps --ignore-scripts
 ```
 
-##### Building Required Native Modules
-
-Due to compatibility issues with certain native modules in Node.js 20.x, you'll need to manually build the required modules after installation:
+Clone the repository and run the installation script:
 
 ```bash
-# Build equihashverify (required for Equihash coins)
-cd node_modules/equihashverify && ../../node_modules/.bin/node-gyp rebuild && cd ../..
-
-# Build bignum (required for share processing)
-cd node_modules/bignum && ../../node_modules/.bin/node-gyp rebuild && cd ../..
+git clone https://github.com/raw391/s-nomp.git s-nomp
+cd s-nomp
+bash scripts/install.sh
 ```
 
-##### Making Verushash Optional
+The installation script will:
+- Check all dependencies (Node.js 20+, Redis, build tools)
+- Install npm packages
+- Build native modules (equihashverify, bignum)
+- Patch jobManager.js for Node.js 20.x compatibility (makes verushash optional)
+- Verify PM2 is available
 
-The verushash module is only required for Verus (VRSC) mining and may fail to compile on Node.js 20.x. To make it optional for other coins:
-
-Edit `node_modules/stratum-pool/lib/jobManager.js`:
-
-Line 9 - Change:
-```javascript
-var vh = require('verushash');
-```
-To:
-```javascript
-var vh = null; // lazy load verushash only when needed
-```
-
-Line 290 (in the processShare function, case 'verushash') - Change:
-```javascript
-case 'verushash':
-    //console.log('processShare ck6a, buffer length: ', headerSolnBuffer.length)
-    headerHash = vh.hash(headerSolnBuffer);
-    break;
-```
-To:
-```javascript
-case 'verushash':
-    //console.log('processShare ck6a, buffer length: ', headerSolnBuffer.length)
-    if (!vh) vh = require('verushash'); // lazy load only when needed
-    headerHash = vh.hash(headerSolnBuffer);
-    break;
-```
-
-This allows the pool to work for Equihash coins (Zero, Zcash, Komodo, etc.) without requiring verushash, while still supporting Verus if the module can be compiled.
-
-##### Pool config
+#### 2) Pool config
 Take a look at the example json file inside the `pool_configs` directory. Rename it to `zclassic.json` and change the
 example fields to fit your setup.
 
@@ -141,18 +107,40 @@ Alternatively, you can use a more efficient block notify script written in pure 
 are commented in [scripts/blocknotify.c](scripts/blocknotify.c).
 
 
-#### 3) Start the portal
+#### 3) Start the pool
 
+##### Using PM2 (Recommended for Production)
+
+PM2 is a production process manager that keeps your pool running and automatically restarts it if it crashes:
+
+```bash
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup  # Follow the instructions to enable PM2 on system boot
+```
+
+To view logs:
+```bash
+pm2 logs s-nomp
+```
+
+To stop/restart:
+```bash
+pm2 stop s-nomp
+pm2 restart s-nomp
+```
+
+##### Using npm start (Development/Testing)
+
+For development or testing, you can run directly:
 ```bash
 npm start
 ```
 
 ###### Optional enhancements for your awesome new mining pool server setup:
-* Use something like [forever](https://github.com/nodejitsu/forever) to keep the node script running
-in case the master process crashes. 
 * Use something like [redis-commander](https://github.com/joeferner/redis-commander) to have a nice GUI
 for exploring your redis database.
-* Use something like [logrotator](http://www.thegeekstuff.com/2010/07/logrotate-examples/) to rotate log 
+* Use something like [logrotator](http://www.thegeekstuff.com/2010/07/logrotate-examples/) to rotate log
 output from s-nomp.
 * Use [New Relic](http://newrelic.com/) to monitor your s-nomp instance and server performance.
 
