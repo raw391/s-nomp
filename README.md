@@ -65,8 +65,53 @@ sudo n stable
 git clone https://github.com/s-nomp/s-nomp.git s-nomp
 cd s-nomp
 npm update
-npm install
+npm install --legacy-peer-deps --ignore-scripts
 ```
+
+##### Building Required Native Modules
+
+Due to compatibility issues with certain native modules in Node.js 20.x, you'll need to manually build the required modules after installation:
+
+```bash
+# Build equihashverify (required for Equihash coins)
+cd node_modules/equihashverify && ../../node_modules/.bin/node-gyp rebuild && cd ../..
+
+# Build bignum (required for share processing)
+cd node_modules/bignum && ../../node_modules/.bin/node-gyp rebuild && cd ../..
+```
+
+##### Making Verushash Optional
+
+The verushash module is only required for Verus (VRSC) mining and may fail to compile on Node.js 20.x. To make it optional for other coins:
+
+Edit `node_modules/stratum-pool/lib/jobManager.js`:
+
+Line 9 - Change:
+```javascript
+var vh = require('verushash');
+```
+To:
+```javascript
+var vh = null; // lazy load verushash only when needed
+```
+
+Line 290 (in the processShare function, case 'verushash') - Change:
+```javascript
+case 'verushash':
+    //console.log('processShare ck6a, buffer length: ', headerSolnBuffer.length)
+    headerHash = vh.hash(headerSolnBuffer);
+    break;
+```
+To:
+```javascript
+case 'verushash':
+    //console.log('processShare ck6a, buffer length: ', headerSolnBuffer.length)
+    if (!vh) vh = require('verushash'); // lazy load only when needed
+    headerHash = vh.hash(headerSolnBuffer);
+    break;
+```
+
+This allows the pool to work for Equihash coins (Zero, Zcash, Komodo, etc.) without requiring verushash, while still supporting Verus if the module can be compiled.
 
 ##### Pool config
 Take a look at the example json file inside the `pool_configs` directory. Rename it to `zclassic.json` and change the
