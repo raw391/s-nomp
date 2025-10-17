@@ -2,8 +2,6 @@
 # s-nomp complete installation script
 # Handles dependency checking, npm installation, native module building, and patching
 
-set -e  # Exit on error
-
 echo "========================================="
 echo "s-nomp Installation Script"
 echo "========================================="
@@ -11,66 +9,189 @@ echo ""
 
 # Check if we're in the right directory
 if [ ! -f "package.json" ]; then
-    echo "Error: Must be run from s-nomp root directory"
+    echo "❌ Error: Must be run from s-nomp root directory"
+    echo ""
+    echo "   Navigate to the s-nomp directory and run:"
+    echo "   cd s-nomp"
+    echo "   bash scripts/install.sh"
     exit 1
 fi
 
-# Check Node.js version
-echo "Checking Node.js version..."
-NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$NODE_VERSION" -lt 20 ]; then
-    echo "❌ Error: Node.js 20.x or higher is required"
-    echo "   Current version: $(node -v)"
-    echo "   Install with: sudo npm install n -g && sudo n stable"
-    exit 1
+echo "Checking system dependencies..."
+echo "--------------------------------"
+MISSING_CRITICAL=0
+MISSING_OPTIONAL=0
+
+# Check Node.js
+if ! command -v node &> /dev/null; then
+    echo "❌ Node.js not found"
+    echo "   Install with:"
+    echo "   sudo apt-get update"
+    echo "   sudo apt-get install npm"
+    echo "   sudo npm install -g n"
+    echo "   sudo n stable"
+    echo ""
+    MISSING_CRITICAL=1
+else
+    NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+    if [ "$NODE_VERSION" -lt 20 ]; then
+        echo "❌ Node.js $(node -v) is too old (need 20.x or higher)"
+        echo "   Upgrade with:"
+        echo "   sudo npm install -g n"
+        echo "   sudo n stable"
+        echo ""
+        MISSING_CRITICAL=1
+    else
+        echo "✓ Node.js $(node -v)"
+    fi
 fi
-echo "✓ Node.js $(node -v) detected"
-echo ""
+
+# Check npm
+if ! command -v npm &> /dev/null; then
+    echo "❌ npm not found"
+    echo "   Install with:"
+    echo "   sudo apt-get install npm"
+    echo ""
+    MISSING_CRITICAL=1
+else
+    echo "✓ npm $(npm -v)"
+fi
 
 # Check Redis
-echo "Checking Redis..."
-if command -v redis-cli &> /dev/null; then
-    if redis-cli ping &> /dev/null; then
+if ! command -v redis-cli &> /dev/null; then
+    echo "❌ Redis not found"
+    echo "   Install with:"
+    echo "   sudo apt-get install redis-server"
+    echo "   sudo systemctl enable redis-server"
+    echo "   sudo systemctl start redis-server"
+    echo ""
+    MISSING_CRITICAL=1
+else
+    if redis-cli ping &> /dev/null 2>&1; then
         echo "✓ Redis is running"
     else
-        echo "⚠ Redis is installed but not running"
-        echo "   Start with: sudo systemctl start redis-server"
+        echo "❌ Redis is installed but not running"
+        echo "   Start with:"
+        echo "   sudo systemctl start redis-server"
+        echo ""
+        MISSING_CRITICAL=1
     fi
-else
-    echo "⚠ Redis not found"
-    echo "   Install with: sudo apt-get install redis-server"
 fi
-echo ""
 
-# Check build dependencies
-echo "Checking build dependencies..."
-MISSING_DEPS=0
-
+# Check build tools
 if ! command -v gcc &> /dev/null; then
-    echo "❌ gcc not found (install with: sudo apt-get install build-essential)"
-    MISSING_DEPS=1
+    echo "❌ gcc not found"
+    echo "   Install with:"
+    echo "   sudo apt-get install build-essential"
+    echo ""
+    MISSING_CRITICAL=1
+else
+    echo "✓ gcc $(gcc --version | head -n1 | awk '{print $NF}')"
 fi
 
 if ! command -v make &> /dev/null; then
-    echo "❌ make not found (install with: sudo apt-get install build-essential)"
-    MISSING_DEPS=1
-fi
-
-if ! dpkg -l | grep -q libsodium-dev; then
-    echo "⚠ libsodium-dev not found (install with: sudo apt-get install libsodium-dev)"
-fi
-
-if ! dpkg -l | grep -q libboost-all-dev; then
-    echo "⚠ libboost-all-dev not found (install with: sudo apt-get install libboost-all-dev)"
-fi
-
-if [ $MISSING_DEPS -eq 1 ]; then
+    echo "❌ make not found"
+    echo "   Install with:"
+    echo "   sudo apt-get install build-essential"
     echo ""
-    echo "❌ Missing required build tools. Install with:"
-    echo "   sudo apt-get install build-essential libsodium-dev libboost-all-dev"
+    MISSING_CRITICAL=1
+else
+    echo "✓ make"
+fi
+
+if ! command -v g++ &> /dev/null; then
+    echo "❌ g++ not found"
+    echo "   Install with:"
+    echo "   sudo apt-get install build-essential"
+    echo ""
+    MISSING_CRITICAL=1
+else
+    echo "✓ g++"
+fi
+
+# Check Python (required by node-gyp)
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Python 3 not found (required by node-gyp)"
+    echo "   Install with:"
+    echo "   sudo apt-get install python3"
+    echo ""
+    MISSING_CRITICAL=1
+else
+    echo "✓ Python $(python3 --version | awk '{print $2}')"
+fi
+
+# Check optional libraries
+if ! dpkg -l 2>/dev/null | grep -q libsodium-dev; then
+    echo "⚠ libsodium-dev not found (optional but recommended)"
+    echo "   Install with:"
+    echo "   sudo apt-get install libsodium-dev"
+    echo ""
+    MISSING_OPTIONAL=1
+else
+    echo "✓ libsodium-dev"
+fi
+
+if ! dpkg -l 2>/dev/null | grep -q libboost-all-dev; then
+    echo "⚠ libboost-all-dev not found (optional but recommended)"
+    echo "   Install with:"
+    echo "   sudo apt-get install libboost-all-dev"
+    echo ""
+    MISSING_OPTIONAL=1
+else
+    echo "✓ libboost-all-dev"
+fi
+
+# Check PM2
+if ! command -v pm2 &> /dev/null; then
+    echo "⚠ PM2 not found (optional but recommended for production)"
+    echo "   Install with:"
+    echo "   sudo npm install -g pm2"
+    echo ""
+    MISSING_OPTIONAL=1
+else
+    echo "✓ PM2 $(pm2 -v)"
+fi
+
+# Summary
+if [ $MISSING_CRITICAL -eq 1 ]; then
+    echo "========================================"
+    echo "❌ MISSING REQUIRED DEPENDENCIES"
+    echo "========================================"
+    echo ""
+    echo "Please install the missing dependencies above and run this script again."
+    echo ""
+    echo "Quick install command for all dependencies:"
+    echo ""
+    echo "sudo apt-get update && sudo apt-get install -y build-essential libsodium-dev libboost-all-dev redis-server npm python3"
+    echo "sudo npm install -g n pm2"
+    echo "sudo n stable"
+    echo "sudo systemctl enable redis-server"
+    echo "sudo systemctl start redis-server"
+    echo ""
     exit 1
 fi
-echo "✓ Build dependencies found"
+
+if [ $MISSING_OPTIONAL -eq 1 ]; then
+    echo "========================================"
+    echo "⚠  OPTIONAL DEPENDENCIES MISSING"
+    echo "========================================"
+    echo ""
+    echo "Some optional dependencies are missing. The pool may work but could have issues."
+    echo "It's recommended to install them with:"
+    echo ""
+    echo "sudo apt-get install libsodium-dev libboost-all-dev"
+    echo "sudo npm install -g pm2"
+    echo ""
+    read -p "Continue anyway? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Installation cancelled."
+        exit 1
+    fi
+fi
+
+echo ""
+echo "✓ All required dependencies are installed"
 echo ""
 
 # Install npm dependencies

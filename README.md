@@ -79,9 +79,34 @@ The installation script will:
 - Patch jobManager.js for Node.js 20.x compatibility (makes verushash optional)
 - Verify PM2 is available
 
-#### 2) Pool config
+#### 2) Configuration
+
+##### Pool config
 Take a look at the example json file inside the `pool_configs` directory. Rename it to `zclassic.json` and change the
 example fields to fit your setup.
+
+The `pool_configs` directory contains example configurations for various coins. Each file shows:
+- Daemon connection settings (host, port, user, password)
+- Pool payout addresses (transparent address, z-address if applicable)
+- Port configuration for miners
+- Payment processing settings
+- Fee percentages
+
+##### Main config
+Copy and edit the main configuration file:
+```bash
+cp config_example.json config.json
+```
+
+Edit `config.json` to configure:
+- Redis connection settings
+- Website host and port
+- Clustering options
+- Logging preferences
+
+##### Examples directory
+The `examples/` directory contains helpful configuration examples:
+- **example_nginx** - Nginx reverse proxy configuration for running the pool website behind nginx (recommended for SSL/TLS)
 
 ```
 Please Note that: 1 Difficulty is actually 8192, 0.125 Difficulty is actually 1024.
